@@ -9,5 +9,6 @@ import java.util.List;
 public record StoreDetailResponse(
 		StoreResponse store,
 		SubscriptionDto activeSubscription,
+		SubscriptionDto activeMaintenanceSubscription,
 		List<SubscriptionDto> subscriptionHistory
 ) {}

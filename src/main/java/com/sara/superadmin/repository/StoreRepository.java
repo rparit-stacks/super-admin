@@ -8,5 +8,6 @@ import java.util.Optional;
 public interface StoreRepository extends MongoRepository<Store, String> {
 	Optional<Store> findByName(String name);
 	Optional<Store> findByApiKey(String apiKey);
+	Optional<Store> findByCode(String code);
 	boolean existsByName(String name);
 }

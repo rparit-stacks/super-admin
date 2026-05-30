@@ -23,6 +23,7 @@ public record StoreResponse(
 		String contactEmail,
 		String contactPhone,
 		String notes,
+		Instant maintenanceFreeUntil,
 		Instant createdAt,
 		Instant updatedAt
 ) {
@@ -31,6 +32,7 @@ public record StoreResponse(
 				s.getId(), s.getName(), s.getCode(), s.getApiBaseUrl(), s.getWebsiteUrl(),
 				s.getApiKey(), s.getStatus(), s.getLastPingAt(), s.getLastPingLatencyMs(),
 				s.isEnabled(), s.getContactEmail(), s.getContactPhone(), s.getNotes(),
+				s.getMaintenanceFreeUntil(),
 				s.getCreatedAt(), s.getUpdatedAt());
 	}
 }

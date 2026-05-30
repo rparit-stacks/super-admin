@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 /**
@@ -68,6 +70,8 @@ public class DataSeeder implements CommandLineRunner {
 		seedSubscriptionProducts();
 		seedSuperAdmin();
 		seedStore();
+		ensureMaintenanceProduct();
+		ensureBnuriComplimentaryMaintenance();
 	}
 
 	private void seedPlans() {
@@ -111,6 +115,18 @@ public class DataSeeder implements CommandLineRunner {
 				.visibleToStores(true)
 				.sortOrder(1)
 				.checkoutFlow(null)
+				.build());
+		subscriptionProductRepository.save(SubscriptionProduct.builder()
+				.code("MAINTENANCE")
+				.title("Website maintenance")
+				.description(
+						"Server, hosting, monitoring, backups, security updates, DB care, deployments, performance, "
+								+ "reporting, and priority technical support. One plan: ₹2,500/month after any "
+								+ "complimentary period configured by support.")
+				.visibleToStores(true)
+				.sortOrder(2)
+				.monthlyPrice(BigDecimal.valueOf(2500))
+				.checkoutFlow("MAINTENANCE_MONTHLY")
 				.build());
 		log.info("Seeded {} subscription product rows", subscriptionProductRepository.count());
 	}
@@ -161,6 +177,53 @@ public class DataSeeder implements CommandLineRunner {
 				.updatedAt(now)
 				.build());
 		log.info("Seeded store '{}' ({})", seedStoreName, seedStoreApiBaseUrl);
+	}
+
+	/**
+	 * Adds the MAINTENANCE product if missing (existing DBs that were seeded before this product existed).
+	 */
+	private void ensureMaintenanceProduct() {
+		if (subscriptionProductRepository.findByCode("MAINTENANCE").isPresent()) {
+			return;
+		}
+		subscriptionProductRepository.save(SubscriptionProduct.builder()
+				.code("MAINTENANCE")
+				.title("Website maintenance")
+				.description(
+						"Server, hosting, monitoring, backups, security updates, DB care, deployments, performance, "
+								+ "reporting, and priority technical support. One plan: ₹2,500/month after any "
+								+ "complimentary period configured by support.")
+				.visibleToStores(true)
+				.sortOrder(2)
+				.monthlyPrice(BigDecimal.valueOf(2500))
+				.checkoutFlow("MAINTENANCE_MONTHLY")
+				.build());
+		log.info("Added MAINTENANCE subscription product");
+	}
+
+	/**
+	 * B-Nutri: default complimentary maintenance end (11 Apr go-live + 2 months → end of 11 Jun IST) when unset.
+	 * Super-admin can change {@code maintenanceFreeUntil} on the store at any time.
+	 */
+	private void ensureBnuriComplimentaryMaintenance() {
+		Instant defaultEnd = ZonedDateTime.of(2026, 6, 11, 23, 59, 59, 0, ZoneId.of("Asia/Kolkata")).toInstant();
+		storeRepository.findByCode("b-nutri").ifPresentOrElse(
+				store -> {
+					if (store.getMaintenanceFreeUntil() == null) {
+						store.setMaintenanceFreeUntil(defaultEnd);
+						store.setUpdatedAt(Instant.now());
+						storeRepository.save(store);
+						log.info("Set default complimentary maintenance end for store code b-nutri");
+					}
+				},
+				() -> storeRepository.findByName(seedStoreName).ifPresent(store -> {
+					if (store.getMaintenanceFreeUntil() == null) {
+						store.setMaintenanceFreeUntil(defaultEnd);
+						store.setUpdatedAt(Instant.now());
+						storeRepository.save(store);
+						log.info("Set default complimentary maintenance end for seeded store name");
+					}
+				}));
 	}
 
 	private String stripTrailingSlash(String url) {

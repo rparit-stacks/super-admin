@@ -2,6 +2,8 @@ package com.sara.superadmin.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.time.Instant;
+
 /** Create / update a store. apiKey is generated server-side when omitted. */
 public record StoreRequest(
 		@NotBlank String name,
@@ -12,5 +14,7 @@ public record StoreRequest(
 		String contactEmail,
 		String contactPhone,
 		String notes,
-		Boolean enabled
+		Boolean enabled,
+		/** Complimentary website maintenance coverage ends at this instant (optional). */
+		Instant maintenanceFreeUntil
 ) {}

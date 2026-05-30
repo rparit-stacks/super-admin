@@ -63,6 +63,9 @@ public class Store {
 	private String contactPhone;
 	private String notes;
 
+	/** Complimentary maintenance ends at this instant (store admin sees coverage until then). Super-admin can change. */
+	private Instant maintenanceFreeUntil;
+
 	private Instant createdAt;
 	private Instant updatedAt;
 }

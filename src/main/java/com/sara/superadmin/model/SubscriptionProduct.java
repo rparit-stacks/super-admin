@@ -37,6 +37,11 @@ public class SubscriptionProduct {
 	private int sortOrder = 0;
 
 	/**
+	 * For {@code MAINTENANCE_MONTHLY} checkout: price per month (INR). Ignored for payment subscription.
+	 */
+	private java.math.BigDecimal monthlyPrice;
+
+	/**
 	 * Storefront checkout implementation key, e.g. {@code PAYMENT_GATEWAYS}.
 	 * When null, the product is listed but not purchasable yet (coming soon).
 	 */

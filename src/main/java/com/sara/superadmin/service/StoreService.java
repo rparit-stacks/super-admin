@@ -58,11 +58,13 @@ public class StoreService {
 	/** Full "go into the store" detail: store + active subscription + history. */
 	public StoreDetailResponse getStoreDetail(String id) {
 		Store store = getStoreOrThrow(id);
-		Subscription active = subscriptionService.findActiveSubscription(id).orElse(null);
+		Subscription activePayment = subscriptionService.findActiveSubscription(id).orElse(null);
+		Subscription activeMaint = subscriptionService.findActiveMaintenanceSubscription(id).orElse(null);
 		List<SubscriptionDto> history = subscriptionService.listForStore(id);
 		return new StoreDetailResponse(
 				StoreResponse.from(store),
-				active != null ? SubscriptionDto.from(active) : null,
+				activePayment != null ? SubscriptionDto.from(activePayment) : null,
+				activeMaint != null ? SubscriptionDto.from(activeMaint) : null,
 				history);
 	}
 
@@ -82,6 +84,7 @@ public class StoreService {
 				.contactEmail(req.contactEmail())
 				.contactPhone(req.contactPhone())
 				.notes(req.notes())
+				.maintenanceFreeUntil(req.maintenanceFreeUntil())
 				.createdAt(now)
 				.updatedAt(now)
 				.build();
@@ -100,6 +103,7 @@ public class StoreService {
 		store.setContactEmail(req.contactEmail());
 		store.setContactPhone(req.contactPhone());
 		store.setNotes(req.notes());
+		store.setMaintenanceFreeUntil(req.maintenanceFreeUntil());
 		if (req.enabled() != null) {
 			store.setEnabled(req.enabled());
 		}

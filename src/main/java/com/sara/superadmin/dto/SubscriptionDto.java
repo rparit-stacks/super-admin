@@ -17,6 +17,8 @@ public record SubscriptionDto(
 		List<PaymentGateway> selectedGateways,
 		BigDecimal amount,
 		String currency,
+		/** {@code PAYMENT} or {@code MAINTENANCE}. */
+		String productLine,
 		SubscriptionStatus status,
 		Instant startDate,
 		Instant endDate,
@@ -27,7 +29,8 @@ public record SubscriptionDto(
 	public static SubscriptionDto from(Subscription s) {
 		return new SubscriptionDto(
 				s.getId(), s.getStoreId(), s.getDuration(), s.getServiceCount(),
-				s.getSelectedGateways(), s.getAmount(), s.getCurrency(), s.getStatus(),
+				s.getSelectedGateways(), s.getAmount(), s.getCurrency(), s.getProductLine(),
+				s.getStatus(),
 				s.getStartDate(), s.getEndDate(), s.getRazorpayOrderId(),
 				s.getRazorpayPaymentId(), s.getCreatedAt());
 	}

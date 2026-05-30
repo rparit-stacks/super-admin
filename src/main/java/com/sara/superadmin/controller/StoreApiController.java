@@ -95,4 +95,16 @@ public class StoreApiController {
 	public List<SubscriptionDto> subscriptionHistory(HttpServletRequest request) {
 		return subscriptionService.listForStore(storeId(request)).stream().limit(40).toList();
 	}
+
+	/** Complimentary window, paid maintenance, and monthly price for the store admin UI. */
+	@GetMapping("/maintenance/status")
+	public Map<String, Object> maintenanceStatus(HttpServletRequest request) {
+		return subscriptionService.getMaintenanceStatus(storeId(request));
+	}
+
+	/** Start monthly maintenance checkout (same verify endpoint as payment subscriptions). */
+	@PostMapping("/maintenance/initiate")
+	public InitiateSubscriptionResponse maintenanceInitiate(HttpServletRequest request) {
+		return subscriptionService.initiateMaintenance(storeId(request));
+	}
 }

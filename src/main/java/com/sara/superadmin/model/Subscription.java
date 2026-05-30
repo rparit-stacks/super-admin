@@ -45,6 +45,12 @@ public class Subscription {
 	@Builder.Default
 	private String currency = "INR";
 
+	/**
+	 * {@code PAYMENT} = payment-gateway plan (default / legacy). {@code MAINTENANCE} = website maintenance plan.
+	 */
+	@Builder.Default
+	private String productLine = "PAYMENT";
+
 	@Builder.Default
 	private SubscriptionStatus status = SubscriptionStatus.PENDING;
 

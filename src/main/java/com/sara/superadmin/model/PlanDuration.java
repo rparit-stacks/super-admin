@@ -4,6 +4,8 @@ package com.sara.superadmin.model;
  * Subscription plan durations. LIFETIME means no expiry (endDate stays null).
  */
 public enum PlanDuration {
+	/** One calendar month (used for maintenance billing). */
+	MONTHLY(1),
 	SIX_MONTH(6),
 	ONE_YEAR(12),
 	LIFETIME(0);
