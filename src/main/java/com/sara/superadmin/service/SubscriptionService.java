@@ -13,11 +13,13 @@ import com.sara.superadmin.repository.SubscriptionRepository;
 import com.sara.superadmin.web.ApiException;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -102,6 +104,20 @@ public class SubscriptionService {
 				.build();
 		sub = repository.save(sub);
 
+		BigDecimal price = plan.getPrice() == null ? BigDecimal.ZERO : plan.getPrice();
+		if (price.compareTo(BigDecimal.ZERO) <= 0) {
+			applyActiveWindow(sub, Instant.now());
+			repository.save(sub);
+			return new InitiateSubscriptionResponse(
+					sub.getId(),
+					null,
+					null,
+					BigDecimal.ZERO,
+					plan.getCurrency(),
+					gateways.size(),
+					true);
+		}
+
 		Map<String, String> notes = new HashMap<>();
 		notes.put("storeId", storeId);
 		notes.put("subscriptionId", sub.getId());
@@ -121,7 +137,18 @@ public class SubscriptionService {
 				razorpay.getPublicKeyId(),
 				plan.getPrice(),
 				plan.getCurrency(),
-				gateways.size());
+				gateways.size(),
+				false);
+	}
+
+	/** Sets ACTIVE status and subscription window from {@code now} (used after pay or for free plans). */
+	private void applyActiveWindow(Subscription sub, Instant now) {
+		sub.setStatus(SubscriptionStatus.ACTIVE);
+		sub.setStartDate(now);
+		sub.setEndDate(sub.getDuration().isLifetime()
+				? null
+				: now.plus(sub.getDuration().getMonths() * 30L, ChronoUnit.DAYS));
+		sub.setUpdatedAt(now);
 	}
 
 	public SubscriptionDto verify(String storeId, VerifySubscriptionRequest req) {
@@ -131,7 +158,7 @@ public class SubscriptionService {
 		if (!sub.getStoreId().equals(storeId)) {
 			throw ApiException.unauthorized("Subscription does not belong to this store");
 		}
-		if (!req.razorpayOrderId().equals(sub.getRazorpayOrderId())) {
+		if (!Objects.equals(req.razorpayOrderId(), sub.getRazorpayOrderId())) {
 			throw ApiException.badRequest("Order id mismatch");
 		}
 		if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
@@ -151,12 +178,7 @@ public class SubscriptionService {
 
 		sub.setRazorpayPaymentId(req.razorpayPaymentId());
 		sub.setRazorpaySignature(req.razorpaySignature());
-		sub.setStatus(SubscriptionStatus.ACTIVE);
-		sub.setStartDate(now);
-		sub.setEndDate(sub.getDuration().isLifetime()
-				? null
-				: now.plus(sub.getDuration().getMonths() * 30L, ChronoUnit.DAYS));
-		sub.setUpdatedAt(now);
+		applyActiveWindow(sub, now);
 		repository.save(sub);
 
 		return SubscriptionDto.from(sub);

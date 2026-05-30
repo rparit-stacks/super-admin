@@ -4,7 +4,8 @@ import java.math.BigDecimal;
 
 /**
  * Returned to the store after initiating. Carries everything the store frontend
- * needs to open the Razorpay checkout (using super-admin's public key).
+ * needs to open the Razorpay checkout (using super-admin's public key), or when
+ * {@code free} is true the subscription was activated with no payment (zero price plan).
  */
 public record InitiateSubscriptionResponse(
 		String subscriptionId,
@@ -12,5 +13,6 @@ public record InitiateSubscriptionResponse(
 		String razorpayKeyId,
 		BigDecimal amount,
 		String currency,
-		int serviceCount
+		int serviceCount,
+		boolean free
 ) {}
