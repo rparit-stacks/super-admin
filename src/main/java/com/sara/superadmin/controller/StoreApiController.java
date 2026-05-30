@@ -89,4 +89,10 @@ public class StoreApiController {
 						"subscription", SubscriptionDto.from(s)))
 				.orElse(Map.of("active", false));
 	}
+
+	/** Recent subscription rows for the store admin (includes ended / failed). */
+	@GetMapping("/subscriptions/history")
+	public List<SubscriptionDto> subscriptionHistory(HttpServletRequest request) {
+		return subscriptionService.listForStore(storeId(request)).stream().limit(40).toList();
+	}
 }
