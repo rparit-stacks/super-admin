@@ -4,9 +4,11 @@ import com.sara.superadmin.dto.InitiateSubscriptionRequest;
 import com.sara.superadmin.dto.InitiateSubscriptionResponse;
 import com.sara.superadmin.dto.PlanDto;
 import com.sara.superadmin.dto.SubscriptionDto;
+import com.sara.superadmin.dto.SubscriptionProductDto;
 import com.sara.superadmin.dto.VerifySubscriptionRequest;
 import com.sara.superadmin.security.StoreApiKeyFilter;
 import com.sara.superadmin.service.PlanService;
+import com.sara.superadmin.service.SubscriptionProductService;
 import com.sara.superadmin.service.SubscriptionService;
 import com.sara.superadmin.web.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,10 +32,14 @@ public class StoreApiController {
 
 	private final PlanService planService;
 	private final SubscriptionService subscriptionService;
+	private final SubscriptionProductService subscriptionProductService;
 
-	public StoreApiController(PlanService planService, SubscriptionService subscriptionService) {
+	public StoreApiController(PlanService planService,
+							  SubscriptionService subscriptionService,
+							  SubscriptionProductService subscriptionProductService) {
 		this.planService = planService;
 		this.subscriptionService = subscriptionService;
+		this.subscriptionProductService = subscriptionProductService;
 	}
 
 	private String storeId(HttpServletRequest request) {
@@ -48,6 +54,12 @@ public class StoreApiController {
 	@GetMapping("/plans")
 	public List<PlanDto> plans() {
 		return planService.listPlans();
+	}
+
+	/** Subscription types the store admin may offer (picker cards); titles and flows from DB. */
+	@GetMapping("/subscription-products")
+	public List<SubscriptionProductDto> subscriptionProducts() {
+		return subscriptionProductService.listVisibleForStore();
 	}
 
 	/** Start a subscription purchase; returns Razorpay order details for checkout. */

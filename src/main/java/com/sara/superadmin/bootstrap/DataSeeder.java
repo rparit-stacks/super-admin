@@ -5,8 +5,10 @@ import com.sara.superadmin.model.PlanDuration;
 import com.sara.superadmin.model.Store;
 import com.sara.superadmin.model.StoreStatus;
 import com.sara.superadmin.model.SuperAdmin;
+import com.sara.superadmin.model.SubscriptionProduct;
 import com.sara.superadmin.repository.PlanRepository;
 import com.sara.superadmin.repository.StoreRepository;
+import com.sara.superadmin.repository.SubscriptionProductRepository;
 import com.sara.superadmin.repository.SuperAdminRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class DataSeeder implements CommandLineRunner {
 	private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
 	private final PlanRepository planRepository;
+	private final SubscriptionProductRepository subscriptionProductRepository;
 	private final SuperAdminRepository superAdminRepository;
 	private final StoreRepository storeRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -48,10 +51,12 @@ public class DataSeeder implements CommandLineRunner {
 	private String globalStoreApiKey;
 
 	public DataSeeder(PlanRepository planRepository,
+					  SubscriptionProductRepository subscriptionProductRepository,
 					  SuperAdminRepository superAdminRepository,
 					  StoreRepository storeRepository,
 					  PasswordEncoder passwordEncoder) {
 		this.planRepository = planRepository;
+		this.subscriptionProductRepository = subscriptionProductRepository;
 		this.superAdminRepository = superAdminRepository;
 		this.storeRepository = storeRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -60,6 +65,7 @@ public class DataSeeder implements CommandLineRunner {
 	@Override
 	public void run(String... args) {
 		seedPlans();
+		seedSubscriptionProducts();
 		seedSuperAdmin();
 		seedStore();
 	}
@@ -82,6 +88,31 @@ public class DataSeeder implements CommandLineRunner {
 		seedPlan(PlanDuration.LIFETIME, 4, 5999);
 
 		log.info("Seeded {} default plans", planRepository.count());
+	}
+
+	private void seedSubscriptionProducts() {
+		if (subscriptionProductRepository.count() > 0) {
+			return;
+		}
+		subscriptionProductRepository.save(SubscriptionProduct.builder()
+				.code("PAYMENT")
+				.title("Payment subscription")
+				.description(
+						"Unlock online payment gateways for your store (Razorpay, Stripe, PayU, Partial COD). "
+								+ "Gateway keys and toggles stay under Payment Settings.")
+				.visibleToStores(true)
+				.sortOrder(0)
+				.checkoutFlow("PAYMENT_GATEWAYS")
+				.build());
+		subscriptionProductRepository.save(SubscriptionProduct.builder()
+				.code("CHAT_AI")
+				.title("Chat & AI subscription")
+				.description("AI assistant and customer chat for your storefront. Checkout will be enabled when this product launches.")
+				.visibleToStores(true)
+				.sortOrder(1)
+				.checkoutFlow(null)
+				.build());
+		log.info("Seeded {} subscription product rows", subscriptionProductRepository.count());
 	}
 
 	private void seedPlan(PlanDuration duration, int serviceCount, long price) {
