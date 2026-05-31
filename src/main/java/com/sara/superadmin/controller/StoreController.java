@@ -23,9 +23,12 @@ import java.util.List;
 public class StoreController {
 
 	private final StoreService storeService;
+	private final com.sara.superadmin.service.ConnectorVerifyService connectorVerifyService;
 
-	public StoreController(StoreService storeService) {
+	public StoreController(StoreService storeService,
+						   com.sara.superadmin.service.ConnectorVerifyService connectorVerifyService) {
 		this.storeService = storeService;
+		this.connectorVerifyService = connectorVerifyService;
 	}
 
 	@GetMapping
@@ -35,7 +38,20 @@ public class StoreController {
 
 	@PostMapping
 	public StoreResponse create(@Valid @RequestBody StoreRequest req) {
-		return storeService.createStore(req);
+		StoreResponse created = storeService.createStore(req);
+		// Try to verify the connector immediately so the UI shows connected + plugins.
+		try {
+			connectorVerifyService.verify(storeService.getStoreOrThrow(created.id()));
+		} catch (Exception ignored) {
+			// Non-fatal; admin can hit "Connect" later.
+		}
+		return storeService.getStore(created.id());
+	}
+
+	/** Verify/connect a store by calling its connector handshake; updates connected + installedPlugins. */
+	@PostMapping("/{id}/connect")
+	public StoreResponse connect(@PathVariable String id) {
+		return StoreResponse.from(connectorVerifyService.verify(storeService.getStoreOrThrow(id)));
 	}
 
 	@GetMapping("/{id}")

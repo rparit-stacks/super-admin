@@ -30,12 +30,9 @@ public class StoreApiKeyFilter extends OncePerRequestFilter {
 	public static final String STORE_ID_ATTR = "storeId";
 
 	private final StoreRepository storeRepository;
-	private final String globalStoreApiKey;
 
-	public StoreApiKeyFilter(StoreRepository storeRepository,
-							 org.springframework.core.env.Environment env) {
+	public StoreApiKeyFilter(StoreRepository storeRepository) {
 		this.storeRepository = storeRepository;
-		this.globalStoreApiKey = env.getProperty("super-admin.store-api-key", "");
 	}
 
 	@Override
@@ -51,13 +48,8 @@ public class StoreApiKeyFilter extends OncePerRequestFilter {
 
 		String key = request.getHeader(HEADER);
 		if (key != null && !key.isBlank()) {
+			// Strict: resolve the store solely by its own per-store apiKey. No global fallback.
 			Optional<Store> store = storeRepository.findByApiKey(key);
-
-			// Fallback: a request carrying the configured global key is treated as the
-			// first registered store (handy while a store's per-store key is set up).
-			if (store.isEmpty() && !globalStoreApiKey.isBlank() && globalStoreApiKey.equals(key)) {
-				store = storeRepository.findAll().stream().findFirst();
-			}
 
 			if (store.isPresent() && store.get().isEnabled()) {
 				Store s = store.get();

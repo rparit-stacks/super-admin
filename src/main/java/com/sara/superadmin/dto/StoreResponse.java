@@ -26,6 +26,10 @@ public record StoreResponse(
 		String notes,
 		Instant maintenanceFreeUntil,
 		List<String> enabledServices,
+		boolean connected,
+		List<String> installedPlugins,
+		String connectorVersion,
+		Instant lastHandshakeAt,
 		Instant createdAt,
 		Instant updatedAt
 ) {
@@ -35,7 +39,11 @@ public record StoreResponse(
 				s.getApiKey(), s.getStatus(), s.getLastPingAt(), s.getLastPingLatencyMs(),
 				s.isEnabled(), s.getContactEmail(), s.getContactPhone(), s.getNotes(),
 				s.getMaintenanceFreeUntil(),
-				s.getEnabledServices() == null ? List.of("PAYMENT", "MAINTENANCE") : s.getEnabledServices(),
+				s.getEnabledServices() == null ? List.of() : s.getEnabledServices(),
+				s.isConnected(),
+				s.getInstalledPlugins() == null ? List.of() : s.getInstalledPlugins(),
+				s.getConnectorVersion(),
+				s.getLastHandshakeAt(),
 				s.getCreatedAt(), s.getUpdatedAt());
 	}
 }

@@ -76,6 +76,16 @@ public class Store {
 	@Builder.Default
 	private List<String> enabledServices = List.of("PAYMENT", "MAINTENANCE");
 
+	// ----- Connector handshake state -----
+	/** Whether the last handshake with this store's connector succeeded. */
+	@Builder.Default
+	private boolean connected = false;
+	/** Plugins the store reported as installed (e.g. ["RCA"]). Drives the UI services list. */
+	private List<String> installedPlugins;
+	/** Connector version reported by the store. */
+	private String connectorVersion;
+	private Instant lastHandshakeAt;
+
 	private Instant createdAt;
 	private Instant updatedAt;
 }
