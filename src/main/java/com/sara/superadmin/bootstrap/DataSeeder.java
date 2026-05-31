@@ -52,6 +52,17 @@ public class DataSeeder implements CommandLineRunner {
 	@Value("${super-admin.store-api-key}")
 	private String globalStoreApiKey;
 
+	@Value("${super-admin.seed.store2.name:}")
+	private String seedStore2Name;
+	@Value("${super-admin.seed.store2.code:}")
+	private String seedStore2Code;
+	@Value("${super-admin.seed.store2.api-base-url:}")
+	private String seedStore2ApiBaseUrl;
+	@Value("${super-admin.seed.store2.website-url:}")
+	private String seedStore2WebsiteUrl;
+	@Value("${super-admin.seed.store2.api-key:}")
+	private String seedStore2ApiKey;
+
 	public DataSeeder(PlanRepository planRepository,
 					  SubscriptionProductRepository subscriptionProductRepository,
 					  SuperAdminRepository superAdminRepository,
@@ -70,8 +81,10 @@ public class DataSeeder implements CommandLineRunner {
 		seedSubscriptionProducts();
 		seedSuperAdmin();
 		seedStore();
+		seedStore2();
 		ensureMaintenanceProduct();
 		ensureBnuriComplimentaryMaintenance();
+		ensureStore2ComplimentaryMaintenance();
 	}
 
 	private void seedPlans() {
@@ -180,6 +193,41 @@ public class DataSeeder implements CommandLineRunner {
 	}
 
 	/**
+	 * Register the second store (Studio Sara) on first boot with its OWN per-store API key
+	 * and base URL. Idempotent: skipped if a store with this name/code already exists, or if
+	 * store2 config is not provided.
+	 */
+	private void seedStore2() {
+		if (seedStore2Name == null || seedStore2Name.isBlank()
+				|| seedStore2ApiBaseUrl == null || seedStore2ApiBaseUrl.isBlank()) {
+			return;
+		}
+		boolean exists = storeRepository.existsByName(seedStore2Name)
+				|| (seedStore2Code != null && !seedStore2Code.isBlank()
+						&& storeRepository.findByCode(seedStore2Code).isPresent());
+		if (exists) {
+			return;
+		}
+		String apiKey = (seedStore2ApiKey != null && !seedStore2ApiKey.isBlank())
+				? seedStore2ApiKey
+				: "sk_store_" + UUID.randomUUID().toString().replace("-", "");
+
+		Instant now = Instant.now();
+		storeRepository.save(Store.builder()
+				.name(seedStore2Name)
+				.code(seedStore2Code != null && !seedStore2Code.isBlank() ? seedStore2Code : "studio-sara")
+				.apiBaseUrl(stripTrailingSlash(seedStore2ApiBaseUrl))
+				.websiteUrl(seedStore2WebsiteUrl != null && !seedStore2WebsiteUrl.isBlank() ? seedStore2WebsiteUrl : null)
+				.apiKey(apiKey)
+				.status(StoreStatus.UNKNOWN)
+				.enabled(true)
+				.createdAt(now)
+				.updatedAt(now)
+				.build());
+		log.info("Seeded store '{}' ({})", seedStore2Name, seedStore2ApiBaseUrl);
+	}
+
+	/**
 	 * Adds the MAINTENANCE product if missing (existing DBs that were seeded before this product existed).
 	 */
 	private void ensureMaintenanceProduct() {
@@ -224,6 +272,36 @@ public class DataSeeder implements CommandLineRunner {
 						log.info("Set default complimentary maintenance end for seeded store name");
 					}
 				}));
+	}
+
+	/**
+	 * Studio Sara: default complimentary maintenance window when unset. Super-admin can
+	 * change {@code maintenanceFreeUntil} on the store from the dashboard at any time.
+	 */
+	private void ensureStore2ComplimentaryMaintenance() {
+		String code = (seedStore2Code != null && !seedStore2Code.isBlank()) ? seedStore2Code : "studio-sara";
+		Instant defaultEnd = ZonedDateTime.of(2026, 8, 31, 23, 59, 59, 0, ZoneId.of("Asia/Kolkata")).toInstant();
+		storeRepository.findByCode(code).ifPresentOrElse(
+				store -> {
+					if (store.getMaintenanceFreeUntil() == null) {
+						store.setMaintenanceFreeUntil(defaultEnd);
+						store.setUpdatedAt(Instant.now());
+						storeRepository.save(store);
+						log.info("Set default complimentary maintenance end for store code {}", code);
+					}
+				},
+				() -> {
+					if (seedStore2Name != null && !seedStore2Name.isBlank()) {
+						storeRepository.findByName(seedStore2Name).ifPresent(store -> {
+							if (store.getMaintenanceFreeUntil() == null) {
+								store.setMaintenanceFreeUntil(defaultEnd);
+								store.setUpdatedAt(Instant.now());
+								storeRepository.save(store);
+								log.info("Set default complimentary maintenance end for store {}", seedStore2Name);
+							}
+						});
+					}
+				});
 	}
 
 	private String stripTrailingSlash(String url) {
