@@ -4,6 +4,7 @@ import com.sara.superadmin.model.Store;
 import com.sara.superadmin.model.StoreStatus;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Store as returned to the super-admin UI. Includes the apiKey (super-admin is
@@ -24,6 +25,7 @@ public record StoreResponse(
 		String contactPhone,
 		String notes,
 		Instant maintenanceFreeUntil,
+		List<String> enabledServices,
 		Instant createdAt,
 		Instant updatedAt
 ) {
@@ -33,6 +35,7 @@ public record StoreResponse(
 				s.getApiKey(), s.getStatus(), s.getLastPingAt(), s.getLastPingLatencyMs(),
 				s.isEnabled(), s.getContactEmail(), s.getContactPhone(), s.getNotes(),
 				s.getMaintenanceFreeUntil(),
+				s.getEnabledServices() == null ? List.of("PAYMENT", "MAINTENANCE") : s.getEnabledServices(),
 				s.getCreatedAt(), s.getUpdatedAt());
 	}
 }

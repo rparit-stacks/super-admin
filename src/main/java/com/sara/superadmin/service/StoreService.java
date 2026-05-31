@@ -85,6 +85,9 @@ public class StoreService {
 				.contactPhone(req.contactPhone())
 				.notes(req.notes())
 				.maintenanceFreeUntil(req.maintenanceFreeUntil())
+				.enabledServices(req.enabledServices() != null && !req.enabledServices().isEmpty()
+						? req.enabledServices()
+						: List.of("PAYMENT", "MAINTENANCE"))
 				.createdAt(now)
 				.updatedAt(now)
 				.build();
@@ -126,6 +129,9 @@ public class StoreService {
 		}
 		if (req.enabled() != null) {
 			store.setEnabled(req.enabled());
+		}
+		if (req.enabledServices() != null) {
+			store.setEnabledServices(req.enabledServices());
 		}
 		store.setUpdatedAt(Instant.now());
 		return StoreResponse.from(storeRepository.save(store));

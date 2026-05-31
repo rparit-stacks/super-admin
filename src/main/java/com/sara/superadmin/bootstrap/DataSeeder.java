@@ -85,6 +85,7 @@ public class DataSeeder implements CommandLineRunner {
 		ensureMaintenanceProduct();
 		ensureBnuriComplimentaryMaintenance();
 		ensureStore2ComplimentaryMaintenance();
+		ensureStore2Services();
 	}
 
 	private void seedPlans() {
@@ -221,10 +222,31 @@ public class DataSeeder implements CommandLineRunner {
 				.apiKey(apiKey)
 				.status(StoreStatus.UNKNOWN)
 				.enabled(true)
+				// Studio Sara offers only the maintenance subscription.
+				.enabledServices(java.util.List.of("MAINTENANCE"))
 				.createdAt(now)
 				.updatedAt(now)
 				.build());
 		log.info("Seeded store '{}' ({})", seedStore2Name, seedStore2ApiBaseUrl);
+	}
+
+	/**
+	 * Studio Sara offers only MAINTENANCE. Set this on the existing row if it was seeded
+	 * before {@code enabledServices} existed (or still carries the default both-services list).
+	 */
+	private void ensureStore2Services() {
+		String code = (seedStore2Code != null && !seedStore2Code.isBlank()) ? seedStore2Code : "studio-sara";
+		storeRepository.findByCode(code).ifPresent(store -> {
+			java.util.List<String> svc = store.getEnabledServices();
+			boolean isDefaultBoth = svc != null && svc.size() == 2
+					&& svc.contains("PAYMENT") && svc.contains("MAINTENANCE");
+			if (svc == null || svc.isEmpty() || isDefaultBoth) {
+				store.setEnabledServices(java.util.List.of("MAINTENANCE"));
+				store.setUpdatedAt(Instant.now());
+				storeRepository.save(store);
+				log.info("Set enabledServices=[MAINTENANCE] for store code {}", code);
+			}
+		});
 	}
 
 	/**

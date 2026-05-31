@@ -10,6 +10,7 @@ import com.sara.superadmin.security.StoreApiKeyFilter;
 import com.sara.superadmin.service.CashfreePaymentService;
 import com.sara.superadmin.service.PlanService;
 import com.sara.superadmin.service.RazorpayPaymentService;
+import com.sara.superadmin.service.StoreService;
 import com.sara.superadmin.service.SubscriptionProductService;
 import com.sara.superadmin.service.SubscriptionService;
 import com.sara.superadmin.web.ApiException;
@@ -37,17 +38,20 @@ public class StoreApiController {
 	private final SubscriptionProductService subscriptionProductService;
 	private final RazorpayPaymentService razorpay;
 	private final CashfreePaymentService cashfree;
+	private final StoreService storeService;
 
 	public StoreApiController(PlanService planService,
 							  SubscriptionService subscriptionService,
 							  SubscriptionProductService subscriptionProductService,
 							  RazorpayPaymentService razorpay,
-							  CashfreePaymentService cashfree) {
+							  CashfreePaymentService cashfree,
+							  StoreService storeService) {
 		this.planService = planService;
 		this.subscriptionService = subscriptionService;
 		this.subscriptionProductService = subscriptionProductService;
 		this.razorpay = razorpay;
 		this.cashfree = cashfree;
+		this.storeService = storeService;
 	}
 
 	private String storeId(HttpServletRequest request) {
@@ -72,10 +76,10 @@ public class StoreApiController {
 		return planService.listPlans();
 	}
 
-	/** Subscription types the store admin may offer (picker cards); titles and flows from DB. */
+	/** Subscription types the store admin may offer (picker cards), filtered to THIS store's enabled services. */
 	@GetMapping("/subscription-products")
-	public List<SubscriptionProductDto> subscriptionProducts() {
-		return subscriptionProductService.listVisibleForStore();
+	public List<SubscriptionProductDto> subscriptionProducts(HttpServletRequest request) {
+		return subscriptionProductService.listVisibleForStore(storeService.getStoreOrThrow(storeId(request)));
 	}
 
 	/** Start a subscription purchase; returns Razorpay order details for checkout. */

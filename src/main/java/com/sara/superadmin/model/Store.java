@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * A registered store. This is the standalone object the super-admin manages.
@@ -65,6 +66,15 @@ public class Store {
 
 	/** Complimentary maintenance ends at this instant (store admin sees coverage until then). Super-admin can change. */
 	private Instant maintenanceFreeUntil;
+
+	/**
+	 * Which subscription services this store offers, by SubscriptionProduct code
+	 * (e.g. {@code PAYMENT}, {@code MAINTENANCE}). Controls what the store's app sees
+	 * and what cards the super-admin StoreDetail shows. Defaults to both for backward
+	 * compatibility with stores registered before this field existed.
+	 */
+	@Builder.Default
+	private List<String> enabledServices = List.of("PAYMENT", "MAINTENANCE");
 
 	private Instant createdAt;
 	private Instant updatedAt;
