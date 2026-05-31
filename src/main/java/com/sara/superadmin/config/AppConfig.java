@@ -30,4 +30,13 @@ public class AppConfig {
 				.readTimeout(Duration.ofSeconds(20))
 				.build();
 	}
+
+	/** Dedicated client for AI/LLM REST calls (analysis can be slow). */
+	@Bean
+	public RestTemplate aiRestTemplate(RestTemplateBuilder builder) {
+		return builder
+				.connectTimeout(Duration.ofSeconds(15))
+				.readTimeout(Duration.ofSeconds(60))
+				.build();
+	}
 }

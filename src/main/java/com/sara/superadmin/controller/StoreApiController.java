@@ -4,10 +4,13 @@ import com.sara.superadmin.dto.InitiateSubscriptionRequest;
 import com.sara.superadmin.dto.InitiateSubscriptionResponse;
 import com.sara.superadmin.dto.PlanDto;
 import com.sara.superadmin.dto.SubscriptionDto;
+import com.sara.superadmin.dto.RcaIngestRequest;
 import com.sara.superadmin.dto.SubscriptionProductDto;
 import com.sara.superadmin.dto.VerifySubscriptionRequest;
+import com.sara.superadmin.model.Store;
 import com.sara.superadmin.security.StoreApiKeyFilter;
 import com.sara.superadmin.service.CashfreePaymentService;
+import com.sara.superadmin.service.IncidentIngestService;
 import com.sara.superadmin.service.PlanService;
 import com.sara.superadmin.service.RazorpayPaymentService;
 import com.sara.superadmin.service.StoreService;
@@ -39,19 +42,22 @@ public class StoreApiController {
 	private final RazorpayPaymentService razorpay;
 	private final CashfreePaymentService cashfree;
 	private final StoreService storeService;
+	private final IncidentIngestService incidentIngestService;
 
 	public StoreApiController(PlanService planService,
 							  SubscriptionService subscriptionService,
 							  SubscriptionProductService subscriptionProductService,
 							  RazorpayPaymentService razorpay,
 							  CashfreePaymentService cashfree,
-							  StoreService storeService) {
+							  StoreService storeService,
+							  IncidentIngestService incidentIngestService) {
 		this.planService = planService;
 		this.subscriptionService = subscriptionService;
 		this.subscriptionProductService = subscriptionProductService;
 		this.razorpay = razorpay;
 		this.cashfree = cashfree;
 		this.storeService = storeService;
+		this.incidentIngestService = incidentIngestService;
 	}
 
 	private String storeId(HttpServletRequest request) {
@@ -60,6 +66,16 @@ public class StoreApiController {
 			throw ApiException.unauthorized("Missing or invalid store API key");
 		}
 		return id.toString();
+	}
+
+	/** Resolve the calling store and require it has the RCA service enabled. */
+	private Store requireRcaStore(HttpServletRequest request) {
+		Store store = storeService.getStoreOrThrow(storeId(request));
+		List<String> services = store.getEnabledServices();
+		if (services == null || !services.contains("RCA")) {
+			throw ApiException.unauthorized("Root Cause Analyzer is not enabled for this store");
+		}
+		return store;
 	}
 
 	/** Which billing providers the super-admin has enabled (no secrets). Drives the store's checkout picker. */
@@ -128,5 +144,22 @@ public class StoreApiController {
 															@RequestBody(required = false) Map<String, Object> body) {
 		String provider = body == null ? null : (String) body.get("paymentProvider");
 		return subscriptionService.initiateMaintenance(storeId(request), provider);
+	}
+
+	// ---------------- Root Cause Analyzer (RCA) ----------------
+
+	/** Store RCA plugin pushes a batch of error rows here. Gated on the RCA service. */
+	@PostMapping("/rca/ingest")
+	public Map<String, Object> rcaIngest(HttpServletRequest request, @RequestBody RcaIngestRequest body) {
+		Store store = requireRcaStore(request);
+		int stored = incidentIngestService.ingest(store, body);
+		return Map.of("received", body.rows() == null ? 0 : body.rows().size(), "stored", stored);
+	}
+
+	/** Store RCA plugin announces itself on boot (currently just confirms the gate). */
+	@PostMapping("/rca/register")
+	public Map<String, Object> rcaRegister(HttpServletRequest request) {
+		Store store = requireRcaStore(request);
+		return Map.of("registered", true, "storeId", store.getId(), "storeName", store.getName());
 	}
 }

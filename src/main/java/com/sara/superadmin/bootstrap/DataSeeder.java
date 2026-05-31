@@ -222,8 +222,8 @@ public class DataSeeder implements CommandLineRunner {
 				.apiKey(apiKey)
 				.status(StoreStatus.UNKNOWN)
 				.enabled(true)
-				// Studio Sara offers only the maintenance subscription.
-				.enabledServices(java.util.List.of("MAINTENANCE"))
+				// Studio Sara offers maintenance + Root Cause Analyzer.
+				.enabledServices(java.util.List.of("MAINTENANCE", "RCA"))
 				.createdAt(now)
 				.updatedAt(now)
 				.build());
@@ -240,11 +240,20 @@ public class DataSeeder implements CommandLineRunner {
 			java.util.List<String> svc = store.getEnabledServices();
 			boolean isDefaultBoth = svc != null && svc.size() == 2
 					&& svc.contains("PAYMENT") && svc.contains("MAINTENANCE");
+			boolean missingRca = svc == null || !svc.contains("RCA");
 			if (svc == null || svc.isEmpty() || isDefaultBoth) {
-				store.setEnabledServices(java.util.List.of("MAINTENANCE"));
+				store.setEnabledServices(java.util.List.of("MAINTENANCE", "RCA"));
 				store.setUpdatedAt(Instant.now());
 				storeRepository.save(store);
-				log.info("Set enabledServices=[MAINTENANCE] for store code {}", code);
+				log.info("Set enabledServices=[MAINTENANCE, RCA] for store code {}", code);
+			} else if (missingRca) {
+				// Sara already customized, just add RCA.
+				java.util.List<String> updated = new java.util.ArrayList<>(svc);
+				updated.add("RCA");
+				store.setEnabledServices(updated);
+				store.setUpdatedAt(Instant.now());
+				storeRepository.save(store);
+				log.info("Added RCA to enabledServices for store code {}", code);
 			}
 		});
 	}

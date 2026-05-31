@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>RCA Incident Alert</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+  <div style="max-width:640px;margin:24px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#dc2626;color:#fff;padding:18px 24px;">
+      <h1 style="margin:0;font-size:18px;">⚠️ Root Cause Analysis — Incident Alert</h1>
+    </div>
+
+    <div style="padding:24px;">
+      <p style="margin:0 0 16px;font-size:14px;color:#6b7280;">
+        An error was detected on <strong th:text="${storeName}">Store</strong>
+        (<span th:text="${storeId}">id</span>) and analyzed automatically.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+        <tr><td style="padding:6px 0;color:#6b7280;width:130px;">Store</td><td style="padding:6px 0;" th:text="${storeName}">Store</td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280;">Endpoint</td><td style="padding:6px 0;"><span th:text="${method}">GET</span> <span th:text="${endpoint}">/x</span></td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280;">Status</td><td style="padding:6px 0;"><span th:text="${statusCode}">500</span> · <span th:text="${errorFlag}">RED</span></td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280;">Occurred</td><td style="padding:6px 0;" th:text="${occurredAt}">—</td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top;">Error</td><td style="padding:6px 0;word-break:break-word;" th:text="${errorMessage}">msg</td></tr>
+      </table>
+
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:14px;">
+        <p style="margin:0 0 4px;font-weight:bold;color:#991b1b;font-size:13px;">Probable Root Cause</p>
+        <p style="margin:0;font-size:14px;white-space:pre-wrap;" th:text="${rootCause}">root cause</p>
+      </div>
+
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;">
+        <p style="margin:0 0 4px;font-weight:bold;color:#166534;font-size:13px;">Suggested Fix</p>
+        <p style="margin:0;font-size:14px;white-space:pre-wrap;" th:text="${suggestedFix}">fix</p>
+      </div>
+
+      <p style="margin:18px 0 0;font-size:11px;color:#9ca3af;">
+        Analyzed by <span th:text="${provider}">AI</span>
+        <span th:if="${model}"> · <span th:text="${model}">model</span></span>
+        <span th:if="${confidence}"> · confidence: <span th:text="${confidence}">MED</span></span>
+      </p>
+    </div>
+
+    <div style="background:#f9fafb;padding:14px 24px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;">
+      Automated message from the Super-Admin Root Cause Analyzer. PII is stripped before analysis.
+    </div>
+  </div>
+</body>
+</html>
