@@ -16,14 +16,14 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+       stage('Deploy') {
             steps {
                 sh '''
                 cp target/super-admin-0.0.1-SNAPSHOT.jar /opt/super-admin/app.jar
-                pm2 restart super-admin
+                sudo pm2 restart super-admin
                 '''
             }
-        }
+}
 
     }
 }
