@@ -7,7 +7,9 @@ import com.sara.superadmin.dto.SubscriptionDto;
 import com.sara.superadmin.dto.SubscriptionProductDto;
 import com.sara.superadmin.dto.VerifySubscriptionRequest;
 import com.sara.superadmin.security.StoreApiKeyFilter;
+import com.sara.superadmin.service.CashfreePaymentService;
 import com.sara.superadmin.service.PlanService;
+import com.sara.superadmin.service.RazorpayPaymentService;
 import com.sara.superadmin.service.SubscriptionProductService;
 import com.sara.superadmin.service.SubscriptionService;
 import com.sara.superadmin.web.ApiException;
@@ -33,13 +35,19 @@ public class StoreApiController {
 	private final PlanService planService;
 	private final SubscriptionService subscriptionService;
 	private final SubscriptionProductService subscriptionProductService;
+	private final RazorpayPaymentService razorpay;
+	private final CashfreePaymentService cashfree;
 
 	public StoreApiController(PlanService planService,
 							  SubscriptionService subscriptionService,
-							  SubscriptionProductService subscriptionProductService) {
+							  SubscriptionProductService subscriptionProductService,
+							  RazorpayPaymentService razorpay,
+							  CashfreePaymentService cashfree) {
 		this.planService = planService;
 		this.subscriptionService = subscriptionService;
 		this.subscriptionProductService = subscriptionProductService;
+		this.razorpay = razorpay;
+		this.cashfree = cashfree;
 	}
 
 	private String storeId(HttpServletRequest request) {
@@ -48,6 +56,14 @@ public class StoreApiController {
 			throw ApiException.unauthorized("Missing or invalid store API key");
 		}
 		return id.toString();
+	}
+
+	/** Which billing providers the super-admin has enabled (no secrets). Drives the store's checkout picker. */
+	@GetMapping("/payment-providers")
+	public Map<String, Object> paymentProviders() {
+		return Map.of(
+				"razorpay", razorpay.isEnabled(),
+				"cashfree", cashfree.isEnabled());
 	}
 
 	/** Pricing matrix the store frontend renders on its Plans page. */
@@ -104,7 +120,9 @@ public class StoreApiController {
 
 	/** Start monthly maintenance checkout (same verify endpoint as payment subscriptions). */
 	@PostMapping("/maintenance/initiate")
-	public InitiateSubscriptionResponse maintenanceInitiate(HttpServletRequest request) {
-		return subscriptionService.initiateMaintenance(storeId(request));
+	public InitiateSubscriptionResponse maintenanceInitiate(HttpServletRequest request,
+															@RequestBody(required = false) Map<String, Object> body) {
+		String provider = body == null ? null : (String) body.get("paymentProvider");
+		return subscriptionService.initiateMaintenance(storeId(request), provider);
 	}
 }

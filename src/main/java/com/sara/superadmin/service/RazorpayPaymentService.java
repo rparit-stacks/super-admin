@@ -2,9 +2,7 @@ package com.sara.superadmin.service;
 
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
-import com.sara.superadmin.dto.PaymentGatewayConfigDto;
 import com.sara.superadmin.model.PaymentGatewayConfig;
-import com.sara.superadmin.repository.PaymentGatewayConfigRepository;
 import com.sara.superadmin.web.ApiException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -16,28 +14,34 @@ import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Map;
 
 /**
  * Uses the super-admin's OWN Razorpay credentials to create and verify
- * subscription payment orders. Singleton config in Mongo.
+ * subscription payment orders. Reads the singleton config via
+ * {@link PaymentGatewayConfigService}; the config screen is managed there.
  */
 @Service
 public class RazorpayPaymentService {
 
 	private static final Logger log = LoggerFactory.getLogger(RazorpayPaymentService.class);
 
-	private final PaymentGatewayConfigRepository configRepository;
+	private final PaymentGatewayConfigService configService;
 
-	public RazorpayPaymentService(PaymentGatewayConfigRepository configRepository) {
-		this.configRepository = configRepository;
+	public RazorpayPaymentService(PaymentGatewayConfigService configService) {
+		this.configService = configService;
+	}
+
+	public boolean isEnabled() {
+		PaymentGatewayConfig cfg = configService.getOrEmpty();
+		return cfg.isRazorpayEnabled()
+				&& cfg.getRazorpayKeyId() != null && !cfg.getRazorpayKeyId().isBlank()
+				&& cfg.getRazorpayKeySecret() != null && !cfg.getRazorpayKeySecret().isBlank();
 	}
 
 	private PaymentGatewayConfig requireEnabledConfig() {
-		PaymentGatewayConfig cfg = configRepository.findFirstByOrderByIdAsc()
-				.orElseThrow(() -> ApiException.server("Razorpay is not configured in super-admin"));
-		if (!cfg.isEnabled() || cfg.getRazorpayKeyId() == null || cfg.getRazorpayKeyId().isBlank()
+		PaymentGatewayConfig cfg = configService.getOrEmpty();
+		if (!cfg.isRazorpayEnabled() || cfg.getRazorpayKeyId() == null || cfg.getRazorpayKeyId().isBlank()
 				|| cfg.getRazorpayKeySecret() == null || cfg.getRazorpayKeySecret().isBlank()) {
 			throw ApiException.server("Razorpay is not enabled/configured in super-admin");
 		}
@@ -103,35 +107,5 @@ public class RazorpayPaymentService {
 			log.warn("Razorpay signature verification error: {}", e.getMessage());
 			return false;
 		}
-	}
-
-	// ---------------- Config management (super-admin) ----------------
-
-	public PaymentGatewayConfigDto getConfigMasked() {
-		PaymentGatewayConfig cfg = configRepository.findFirstByOrderByIdAsc()
-				.orElse(PaymentGatewayConfig.builder().enabled(false).build());
-		String maskedSecret = (cfg.getRazorpayKeySecret() != null && !cfg.getRazorpayKeySecret().isBlank())
-				? PaymentGatewayConfigDto.SECRET_MASK : "";
-		return new PaymentGatewayConfigDto(
-				cfg.getRazorpayKeyId() == null ? "" : cfg.getRazorpayKeyId(),
-				maskedSecret,
-				cfg.isEnabled());
-	}
-
-	public PaymentGatewayConfigDto updateConfig(PaymentGatewayConfigDto dto) {
-		PaymentGatewayConfig cfg = configRepository.findFirstByOrderByIdAsc()
-				.orElseGet(() -> PaymentGatewayConfig.builder().build());
-
-		cfg.setRazorpayKeyId(dto.razorpayKeyId());
-		// Empty or masked secret means "keep existing".
-		if (dto.razorpayKeySecret() != null
-				&& !dto.razorpayKeySecret().isBlank()
-				&& !PaymentGatewayConfigDto.SECRET_MASK.equals(dto.razorpayKeySecret())) {
-			cfg.setRazorpayKeySecret(dto.razorpayKeySecret());
-		}
-		cfg.setEnabled(dto.enabled());
-		cfg.setUpdatedAt(Instant.now());
-		configRepository.save(cfg);
-		return getConfigMasked();
 	}
 }

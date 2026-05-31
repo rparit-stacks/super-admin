@@ -22,8 +22,11 @@ public record SubscriptionDto(
 		SubscriptionStatus status,
 		Instant startDate,
 		Instant endDate,
+		/** {@code RAZORPAY} or {@code CASHFREE}. */
+		String paymentProvider,
 		String razorpayOrderId,
 		String razorpayPaymentId,
+		String cashfreeOrderId,
 		Instant createdAt
 ) {
 	public static SubscriptionDto from(Subscription s) {
@@ -31,7 +34,9 @@ public record SubscriptionDto(
 				s.getId(), s.getStoreId(), s.getDuration(), s.getServiceCount(),
 				s.getSelectedGateways(), s.getAmount(), s.getCurrency(), s.getProductLine(),
 				s.getStatus(),
-				s.getStartDate(), s.getEndDate(), s.getRazorpayOrderId(),
-				s.getRazorpayPaymentId(), s.getCreatedAt());
+				s.getStartDate(), s.getEndDate(),
+				s.getPaymentProvider() == null ? "RAZORPAY" : s.getPaymentProvider(),
+				s.getRazorpayOrderId(), s.getRazorpayPaymentId(),
+				s.getCashfreeOrderId(), s.getCreatedAt());
 	}
 }

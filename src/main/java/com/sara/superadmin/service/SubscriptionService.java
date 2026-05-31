@@ -37,22 +37,42 @@ public class SubscriptionService {
 	public static final String PRODUCT_PAYMENT = "PAYMENT";
 	public static final String PRODUCT_MAINTENANCE = "MAINTENANCE";
 
+	public static final String PROVIDER_RAZORPAY = "RAZORPAY";
+	public static final String PROVIDER_CASHFREE = "CASHFREE";
+
 	private final SubscriptionRepository repository;
 	private final PlanService planService;
 	private final RazorpayPaymentService razorpay;
+	private final CashfreePaymentService cashfree;
 	private final StoreRepository storeRepository;
 	private final SubscriptionProductRepository subscriptionProductRepository;
 
 	public SubscriptionService(SubscriptionRepository repository,
 							   PlanService planService,
 							   RazorpayPaymentService razorpay,
+							   CashfreePaymentService cashfree,
 							   StoreRepository storeRepository,
 							   SubscriptionProductRepository subscriptionProductRepository) {
 		this.repository = repository;
 		this.planService = planService;
 		this.razorpay = razorpay;
+		this.cashfree = cashfree;
 		this.storeRepository = storeRepository;
 		this.subscriptionProductRepository = subscriptionProductRepository;
+	}
+
+	/** Resolve and validate the requested billing provider (defaults to Razorpay). */
+	private String resolveEnabledProvider(String requested) {
+		String provider = (requested != null && PROVIDER_CASHFREE.equalsIgnoreCase(requested))
+				? PROVIDER_CASHFREE : PROVIDER_RAZORPAY;
+		if (PROVIDER_CASHFREE.equals(provider)) {
+			if (!cashfree.isEnabled()) {
+				throw ApiException.badRequest("Cashfree is not available right now");
+			}
+		} else if (!razorpay.isEnabled()) {
+			throw ApiException.badRequest("Razorpay is not available right now");
+		}
+		return provider;
 	}
 
 	// ---------------- Queries ----------------
@@ -156,6 +176,8 @@ public class SubscriptionService {
 			throw ApiException.badRequest("Cannot select more than " + MAX_SERVICES + " gateways");
 		}
 
+		String provider = resolveEnabledProvider(req.paymentProvider());
+
 		PlanDuration duration = req.duration();
 		Plan plan = planService.resolve(duration, gateways.size());
 
@@ -168,6 +190,7 @@ public class SubscriptionService {
 				.amount(plan.getPrice())
 				.currency(plan.getCurrency())
 				.productLine(PRODUCT_PAYMENT)
+				.paymentProvider(provider)
 				.status(SubscriptionStatus.PENDING)
 				.createdAt(now)
 				.updatedAt(now)
@@ -178,14 +201,7 @@ public class SubscriptionService {
 		if (price.compareTo(BigDecimal.ZERO) <= 0) {
 			applyActiveWindow(sub, Instant.now());
 			repository.save(sub);
-			return new InitiateSubscriptionResponse(
-					sub.getId(),
-					null,
-					null,
-					BigDecimal.ZERO,
-					plan.getCurrency(),
-					gateways.size(),
-					true);
+			return InitiateSubscriptionResponse.free(sub.getId(), plan.getCurrency(), gateways.size());
 		}
 
 		Map<String, String> notes = new HashMap<>();
@@ -194,24 +210,11 @@ public class SubscriptionService {
 		notes.put("duration", duration.name());
 		notes.put("serviceCount", String.valueOf(gateways.size()));
 
-		String receipt = "sub_" + sub.getId();
-		String orderId = razorpay.createOrder(plan.getPrice(), plan.getCurrency(), receipt, notes);
-
-		sub.setRazorpayOrderId(orderId);
-		sub.setUpdatedAt(Instant.now());
-		repository.save(sub);
-
-		return new InitiateSubscriptionResponse(
-				sub.getId(),
-				orderId,
-				razorpay.getPublicKeyId(),
-				plan.getPrice(),
-				plan.getCurrency(),
-				gateways.size(),
-				false);
+		return createOrderResponse(sub, provider, price, plan.getCurrency(), "sub_" + sub.getId(),
+				notes, gateways.size());
 	}
 
-	public InitiateSubscriptionResponse initiateMaintenance(String storeId) {
+	public InitiateSubscriptionResponse initiateMaintenance(String storeId, String requestedProvider) {
 		if (findActiveMaintenanceSubscription(storeId).isPresent()) {
 			throw ApiException.badRequest("Maintenance plan is already active for this store");
 		}
@@ -220,6 +223,8 @@ public class SubscriptionService {
 		BigDecimal price = product.getMonthlyPrice() != null
 				? product.getMonthlyPrice()
 				: new BigDecimal("2500");
+
+		String provider = resolveEnabledProvider(requestedProvider);
 
 		Instant now = Instant.now();
 		Subscription sub = Subscription.builder()
@@ -230,6 +235,7 @@ public class SubscriptionService {
 				.amount(price)
 				.currency("INR")
 				.productLine(PRODUCT_MAINTENANCE)
+				.paymentProvider(provider)
 				.status(SubscriptionStatus.PENDING)
 				.createdAt(now)
 				.updatedAt(now)
@@ -239,14 +245,7 @@ public class SubscriptionService {
 		if (price.compareTo(BigDecimal.ZERO) <= 0) {
 			applyActiveWindow(sub, Instant.now());
 			repository.save(sub);
-			return new InitiateSubscriptionResponse(
-					sub.getId(),
-					null,
-					null,
-					BigDecimal.ZERO,
-					"INR",
-					0,
-					true);
+			return InitiateSubscriptionResponse.free(sub.getId(), "INR", 0);
 		}
 
 		Map<String, String> notes = new HashMap<>();
@@ -254,20 +253,29 @@ public class SubscriptionService {
 		notes.put("subscriptionId", sub.getId());
 		notes.put("productLine", PRODUCT_MAINTENANCE);
 
-		String receipt = "maint_" + sub.getId();
-		String orderId = razorpay.createOrder(price, "INR", receipt, notes);
+		return createOrderResponse(sub, provider, price, "INR", "maint_" + sub.getId(), notes, 0);
+	}
+
+	/** Create the provider order, persist its linkage on the subscription, and build the response. */
+	private InitiateSubscriptionResponse createOrderResponse(Subscription sub, String provider, BigDecimal price,
+															 String currency, String receipt,
+															 Map<String, String> notes, int serviceCount) {
+		if (PROVIDER_CASHFREE.equals(provider)) {
+			CashfreePaymentService.CashfreeOrder order = cashfree.createOrder(price, currency, receipt, notes);
+			sub.setCashfreeOrderId(order.orderId());
+			sub.setCashfreePaymentSessionId(order.paymentSessionId());
+			sub.setUpdatedAt(Instant.now());
+			repository.save(sub);
+			return InitiateSubscriptionResponse.cashfree(sub.getId(), order.orderId(), order.paymentSessionId(),
+					cashfree.getEnv(), price, currency, serviceCount);
+		}
+
+		String orderId = razorpay.createOrder(price, currency, receipt, notes);
 		sub.setRazorpayOrderId(orderId);
 		sub.setUpdatedAt(Instant.now());
 		repository.save(sub);
-
-		return new InitiateSubscriptionResponse(
-				sub.getId(),
-				orderId,
-				razorpay.getPublicKeyId(),
-				price,
-				"INR",
-				0,
-				false);
+		return InitiateSubscriptionResponse.razorpay(sub.getId(), orderId, razorpay.getPublicKeyId(),
+				price, currency, serviceCount);
 	}
 
 	/** Sets ACTIVE status and subscription window from {@code now} (used after pay or for free plans). */
@@ -291,17 +299,35 @@ public class SubscriptionService {
 		if (!sub.getStoreId().equals(storeId)) {
 			throw ApiException.unauthorized("Subscription does not belong to this store");
 		}
-		if (!Objects.equals(req.razorpayOrderId(), sub.getRazorpayOrderId())) {
-			throw ApiException.badRequest("Order id mismatch");
-		}
 		if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
 			return SubscriptionDto.from(sub); // idempotent
 		}
 
+		String provider = sub.getPaymentProvider() == null ? PROVIDER_RAZORPAY : sub.getPaymentProvider();
+		Instant now = Instant.now();
+
+		if (PROVIDER_CASHFREE.equals(provider)) {
+			if (!Objects.equals(req.cashfreeOrderId(), sub.getCashfreeOrderId())) {
+				throw ApiException.badRequest("Order id mismatch");
+			}
+			boolean paid = cashfree.verifyPayment(sub.getCashfreeOrderId());
+			if (!paid) {
+				sub.setStatus(SubscriptionStatus.FAILED);
+				sub.setUpdatedAt(now);
+				repository.save(sub);
+				throw ApiException.badRequest("Cashfree payment not confirmed");
+			}
+			applyActiveWindow(sub, now);
+			repository.save(sub);
+			return SubscriptionDto.from(sub);
+		}
+
+		// Razorpay
+		if (!Objects.equals(req.razorpayOrderId(), sub.getRazorpayOrderId())) {
+			throw ApiException.badRequest("Order id mismatch");
+		}
 		boolean valid = razorpay.verifySignature(
 				req.razorpayOrderId(), req.razorpayPaymentId(), req.razorpaySignature());
-
-		Instant now = Instant.now();
 		if (!valid) {
 			sub.setStatus(SubscriptionStatus.FAILED);
 			sub.setUpdatedAt(now);

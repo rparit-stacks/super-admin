@@ -13,5 +13,7 @@ import java.util.List;
 public record InitiateSubscriptionRequest(
 		@NotNull PlanDuration duration,
 		/** Gateways the store wants to unlock; minimum 2 enforced server-side. */
-		@NotNull List<PaymentGateway> selectedGateways
+		@NotNull List<PaymentGateway> selectedGateways,
+		/** Billing provider to charge through: {@code RAZORPAY} (default) or {@code CASHFREE}. */
+		String paymentProvider
 ) {}

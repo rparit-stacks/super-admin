@@ -60,10 +60,18 @@ public class Subscription {
 	/** Null for LIFETIME plans; otherwise startDate + duration. */
 	private Instant endDate;
 
+	/** Which gateway collected this payment: {@code RAZORPAY} (default/legacy) or {@code CASHFREE}. */
+	@Builder.Default
+	private String paymentProvider = "RAZORPAY";
+
 	// ----- Razorpay payment linkage -----
 	private String razorpayOrderId;
 	private String razorpayPaymentId;
 	private String razorpaySignature;
+
+	// ----- Cashfree payment linkage -----
+	private String cashfreeOrderId;
+	private String cashfreePaymentSessionId;
 
 	private Instant createdAt;
 	private Instant updatedAt;

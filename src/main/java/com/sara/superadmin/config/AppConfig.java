@@ -21,4 +21,13 @@ public class AppConfig {
 				.readTimeout(Duration.ofMillis(timeoutMs))
 				.build();
 	}
+
+	/** Dedicated client for Cashfree PG REST calls (separate, longer timeouts). */
+	@Bean
+	public RestTemplate cashfreeRestTemplate(RestTemplateBuilder builder) {
+		return builder
+				.connectTimeout(Duration.ofSeconds(10))
+				.readTimeout(Duration.ofSeconds(20))
+				.build();
+	}
 }
