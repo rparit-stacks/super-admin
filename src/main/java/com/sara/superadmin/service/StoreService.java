@@ -91,22 +91,54 @@ public class StoreService {
 		return StoreResponse.from(storeRepository.save(store));
 	}
 
+	/**
+	 * Partial update: a field is overwritten ONLY when the request provides it (non-null).
+	 * This prevents a PUT that omits a field from wiping the stored value (the bug that
+	 * was clobbering {@code maintenanceFreeUntil}). The maintenance window is intentionally
+	 * NOT handled here — it has its own dedicated endpoint ({@link #setMaintenanceWindow})
+	 * so it can never be cleared as a side effect of a general store edit.
+	 */
 	public StoreResponse updateStore(String id, StoreRequest req) {
 		Store store = getStoreOrThrow(id);
-		store.setName(req.name());
-		store.setCode(req.code());
-		store.setApiBaseUrl(stripTrailingSlash(req.apiBaseUrl()));
-		store.setWebsiteUrl(req.websiteUrl());
+		if (req.name() != null && !req.name().isBlank()) {
+			store.setName(req.name());
+		}
+		if (req.code() != null) {
+			store.setCode(req.code());
+		}
+		if (req.apiBaseUrl() != null && !req.apiBaseUrl().isBlank()) {
+			store.setApiBaseUrl(stripTrailingSlash(req.apiBaseUrl()));
+		}
+		if (req.websiteUrl() != null) {
+			store.setWebsiteUrl(req.websiteUrl());
+		}
 		if (req.apiKey() != null && !req.apiKey().isBlank()) {
 			store.setApiKey(req.apiKey());
 		}
-		store.setContactEmail(req.contactEmail());
-		store.setContactPhone(req.contactPhone());
-		store.setNotes(req.notes());
-		store.setMaintenanceFreeUntil(req.maintenanceFreeUntil());
+		if (req.contactEmail() != null) {
+			store.setContactEmail(req.contactEmail());
+		}
+		if (req.contactPhone() != null) {
+			store.setContactPhone(req.contactPhone());
+		}
+		if (req.notes() != null) {
+			store.setNotes(req.notes());
+		}
 		if (req.enabled() != null) {
 			store.setEnabled(req.enabled());
 		}
+		store.setUpdatedAt(Instant.now());
+		return StoreResponse.from(storeRepository.save(store));
+	}
+
+	/**
+	 * Set or clear the complimentary maintenance window for a store. This is the ONLY
+	 * place {@code maintenanceFreeUntil} is mutated via the admin UI, so a general store
+	 * edit can never wipe it. A {@code null} value explicitly clears the window.
+	 */
+	public StoreResponse setMaintenanceWindow(String id, Instant maintenanceFreeUntil) {
+		Store store = getStoreOrThrow(id);
+		store.setMaintenanceFreeUntil(maintenanceFreeUntil);
 		store.setUpdatedAt(Instant.now());
 		return StoreResponse.from(storeRepository.save(store));
 	}

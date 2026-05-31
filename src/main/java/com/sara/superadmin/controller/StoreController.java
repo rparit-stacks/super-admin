@@ -1,6 +1,7 @@
 package com.sara.superadmin.controller;
 
 import com.sara.superadmin.dto.LivenessResult;
+import com.sara.superadmin.dto.MaintenanceWindowRequest;
 import com.sara.superadmin.dto.StoreDetailResponse;
 import com.sara.superadmin.dto.StoreRequest;
 import com.sara.superadmin.dto.StoreResponse;
@@ -45,6 +46,17 @@ public class StoreController {
 	@PutMapping("/{id}")
 	public StoreResponse update(@PathVariable String id, @Valid @RequestBody StoreRequest req) {
 		return storeService.updateStore(id, req);
+	}
+
+	/**
+	 * Set or clear ONLY the complimentary maintenance window. Kept separate from the
+	 * general store update so saving the date can never wipe other fields, and a general
+	 * edit can never wipe the date.
+	 */
+	@PutMapping("/{id}/maintenance-window")
+	public StoreResponse setMaintenanceWindow(@PathVariable String id,
+											  @RequestBody MaintenanceWindowRequest req) {
+		return storeService.setMaintenanceWindow(id, req.maintenanceFreeUntil());
 	}
 
 	/** Full detail when the super-admin "goes into" a store. */
